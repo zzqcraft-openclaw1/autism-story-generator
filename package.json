@@ -1,0 +1,35 @@
+{
+  "name": "autism-story-generator",
+  "version": "1.0.0",
+  "description": "This repository currently contains the planning and product-contract docs for the Autism Story Generator.",
+  "type": "module",
+  "main": "dist/index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc --project tsconfig.json",
+    "test": "rm -rf dist && vitest run tests",
+    "test:watch": "vitest tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzqcraft-openclaw1/autism-story-generator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zzqcraft-openclaw1/autism-story-generator/issues"
+  },
+  "homepage": "https://github.com/zzqcraft-openclaw1/autism-story-generator#readme",
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

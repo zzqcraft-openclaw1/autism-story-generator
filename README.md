@@ -13,9 +13,23 @@ This repository currently contains the planning and product-contract docs for th
 
 ## Current status
 
-- Repo state: documentation phase only
+- Repo state: documentation plus Phase 1 TypeScript/Zod data contracts
 - Phase 0 scaffold: not started yet
 - Current focus: caregiver-first MVP definition, schemas, UX flow, and implementation sequencing
+
+## Phase 1 contracts
+
+The repository now includes a minimal code layer for core data contracts:
+
+- `src/schemas/` — Zod schemas for child profile, story request, and story output
+- `src/validation.ts` — parse/validate helpers with normalized error output
+- `src/fixtures/` — valid and invalid example fixtures
+- `tests/contracts.test.ts` — Vitest coverage for valid/invalid contract behavior
+
+### Commands
+
+- `npm test` — run schema/fixture tests
+- `npm run build` — compile the TypeScript contracts
 
 ---
 
