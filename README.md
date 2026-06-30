@@ -1,3 +1,24 @@
+# Autism Story Generator
+
+This repository currently contains the planning and product-contract docs for the Autism Story Generator.
+
+## Docs
+
+- [Docs index](./docs/README.md)
+- [MVP spec](./docs/mvp-spec.md)
+- [Child profile schema](./docs/child-profile-schema.md)
+- [Story output JSON schema](./docs/story-output-json-schema.md)
+- [Caregiver UX flow](./docs/caregiver-ux-flow.md)
+- [Implementation plan](./docs/implementation-plan.md)
+
+## Current status
+
+- Repo state: documentation phase only
+- Phase 0 scaffold: not started yet
+- Current focus: caregiver-first MVP definition, schemas, UX flow, and implementation sequencing
+
+---
+
 # Design Doc — Automatic Story Generation for Autism Kids
 
 ## 1. Project Summary
