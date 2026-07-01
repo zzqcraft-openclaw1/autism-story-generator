@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ChildProfile {
+  id           String   @id @default(cuid())
+  profileId    String   @unique
+  status       String
+  payload      Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  storyRequests StoryRequest[]
+}
+
+model StoryRequest {
+  id          String   @id @default(cuid())
+  requestId   String   @unique
+  profileId   String
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  childProfile ChildProfile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  stories      GeneratedStory[]
+}
+
+model GeneratedStory {
+  id            String   @id @default(cuid())
+  storyId        String   @unique
+  requestId      String
+  payload        Json
+  createdAt      DateTime @default(now())
+
+  storyRequest StoryRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+}

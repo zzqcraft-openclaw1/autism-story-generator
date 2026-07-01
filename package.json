@@ -10,6 +10,8 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.json",
+    "start": "node dist/server/index.js",
+    "dev": "node --watch --enable-source-maps src/server/index.ts",
     "test": "rm -rf dist && vitest run tests",
     "test:watch": "vitest tests"
   },
