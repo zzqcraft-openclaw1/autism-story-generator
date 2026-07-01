@@ -1,7 +1,9 @@
 import { ChildProfileService } from '../child-profiles';
+import { StoryGenerationService } from '../story-generator';
 import { htmlResponse, jsonResponse, readJsonBody } from './utils';
 
 const childProfiles = new ChildProfileService();
+const storyGenerator = new StoryGenerationService();
 
 export async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
@@ -9,6 +11,11 @@ export async function handleRequest(request: Request): Promise<Response> {
   try {
     if (request.method === 'GET' && url.pathname === '/') {
       return htmlResponse(renderHomePage());
+    }
+
+    if (request.method === 'GET' && url.pathname === '/story-request') {
+      const profiles = await childProfiles.list();
+      return htmlResponse(renderStoryRequestPage(profiles));
     }
 
     if (request.method === 'GET' && url.pathname === '/api/child-profiles') {
@@ -19,6 +26,12 @@ export async function handleRequest(request: Request): Promise<Response> {
       const body = await readJsonBody(request);
       const created = await childProfiles.create(body);
       return jsonResponse(created, 201);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/story-requests') {
+      const body = await readJsonBody(request);
+      const result = await storyGenerator.submit(body);
+      return jsonResponse(result, 201);
     }
 
     const profileMatch = url.pathname.match(/^\/api\/child-profiles\/([^/]+)$/);
@@ -67,7 +80,7 @@ function renderHomePage(): string {
   </head>
   <body>
     <h1>Autism Story Generator</h1>
-    <p>Thin MVP workspace for child profiles.</p>
+    <p>Thin MVP workspace for child profiles and story generation.</p>
     <div class="card">
       <h2>Create child profile</h2>
       <form id="profile-form">
@@ -91,6 +104,10 @@ function renderHomePage(): string {
         <button type="submit">Save profile</button>
       </form>
       <pre id="profile-result"></pre>
+    </div>
+    <div class="card">
+      <h2>Next step</h2>
+      <p><a href="/story-request">Open the story request flow</a></p>
     </div>
     <script>
       const splitList = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
@@ -168,6 +185,85 @@ function renderHomePage(): string {
         });
         const data = await response.json();
         document.getElementById('profile-result').textContent = JSON.stringify(data, null, 2);
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService['list']>>): string {
+  const options = profiles
+    .map(
+      (profile) =>
+        `<option value="${profile.profile_id}">${profile.identity.display_name} (${profile.profile_id})</option>`,
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Story request</title>
+    <style>
+      body { font-family: sans-serif; margin: 2rem auto; max-width: 860px; padding: 0 1rem; line-height: 1.5; }
+      textarea, input, select { width: 100%; padding: 0.6rem; margin-top: 0.3rem; margin-bottom: 1rem; }
+      button { padding: 0.7rem 1rem; }
+      pre { background: #f4f4f4; padding: 1rem; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Story request</h1>
+    <p><a href="/">Back to profiles</a></p>
+    <form id="story-form">
+      <label>Child profile
+        <select name="profile_id" ${profiles.length === 0 ? 'disabled' : ''}>
+          ${options || '<option>No profiles yet</option>'}
+        </select>
+      </label>
+      <label>Topic<input name="topic" value="going to the dentist" /></label>
+      <label>Target skill<input name="target_skill" value="preparing for a new experience" /></label>
+      <label>Length
+        <select name="story_length">
+          <option value="short">short</option>
+          <option value="medium">medium</option>
+        </select>
+      </label>
+      <label>Setting<input name="setting" value="dentist office" /></label>
+      <label>Tone
+        <select name="desired_tone">
+          <option value="calm_supportive">calm_supportive</option>
+          <option value="gentle_encouraging">gentle_encouraging</option>
+        </select>
+      </label>
+      <label>Avoid (comma-separated)<input name="avoid" value="scary details,surprising loud events" /></label>
+      <button type="submit" ${profiles.length === 0 ? 'disabled' : ''}>Generate story</button>
+    </form>
+    <pre id="story-result"></pre>
+    <script>
+      const splitList = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
+      document.getElementById('story-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.target);
+        const body = {
+          profile_id: form.get('profile_id'),
+          request: {
+            topic: form.get('topic'),
+            target_skill: form.get('target_skill'),
+            story_length: form.get('story_length'),
+            setting: form.get('setting') || null,
+            desired_tone: form.get('desired_tone') || null,
+            avoid: splitList(form.get('avoid')),
+          },
+        };
+
+        const response = await fetch('/api/story-requests', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        document.getElementById('story-result').textContent = JSON.stringify(data, null, 2);
       });
     </script>
   </body>
