@@ -385,6 +385,53 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
     )
     .join('');
 
+  const scenarioPresets = [
+    {
+      id: 'dentist',
+      label: 'Dentist visit',
+      description: 'New experience with a predictable support plan.',
+      topic: 'going to the dentist',
+      target_skill: 'preparing for a new experience',
+      story_length: 'short',
+      setting: 'dentist office',
+      desired_tone: 'calm_supportive',
+      avoid: ['scary details', 'surprising loud events'],
+    },
+    {
+      id: 'haircut',
+      label: 'Haircut',
+      description: 'Sensory-heavy routine with clear expectations.',
+      topic: 'getting a haircut',
+      target_skill: 'staying calm during sensory discomfort',
+      story_length: 'short',
+      setting: 'hair salon',
+      desired_tone: 'gentle_encouraging',
+      avoid: ['buzzing close to ears', 'sudden rushing'],
+    },
+    {
+      id: 'playground',
+      label: 'Taking turns at the playground',
+      description: 'Social flexibility with waiting and asking for help.',
+      topic: 'waiting for a turn on the swing',
+      target_skill: 'flexible waiting and safe asking',
+      story_length: 'medium',
+      setting: 'playground',
+      desired_tone: 'calm_supportive',
+      avoid: ['shaming language', 'crowded chaos'],
+    },
+    {
+      id: 'bedtime',
+      label: 'Bedtime transition',
+      description: 'Routine change with regulation support.',
+      topic: 'getting ready for bedtime',
+      target_skill: 'moving through a routine step by step',
+      story_length: 'short',
+      setting: 'home bedroom',
+      desired_tone: 'gentle_encouraging',
+      avoid: ['threats', 'loud conflict'],
+    },
+  ];
+
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -392,65 +439,259 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Story request</title>
     <style>
-      body { font-family: sans-serif; margin: 2rem auto; max-width: 860px; padding: 0 1rem; line-height: 1.5; }
-      textarea, input, select { width: 100%; padding: 0.6rem; margin-top: 0.3rem; margin-bottom: 1rem; }
+      body { font-family: sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; line-height: 1.5; }
+      textarea, input, select { width: 100%; padding: 0.6rem; margin-top: 0.3rem; margin-bottom: 1rem; box-sizing: border-box; }
       button { padding: 0.7rem 1rem; }
       pre { background: #f4f4f4; padding: 1rem; overflow: auto; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+      .status { min-height: 1.5rem; margin: 0.5rem 0 1rem; font-weight: 600; }
+      .status[data-kind="error"] { color: #b42318; }
+      .status[data-kind="success"] { color: #067647; }
+      .status[data-kind="info"] { color: #175cd3; }
+      .muted { color: #555; }
+      .preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+      .preset-button { text-align: left; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+      .preset-button strong { display: block; margin-bottom: 0.2rem; }
+      .section-list { display: grid; gap: 0.75rem; }
+      .story-block { background: #f8f9fb; border-radius: 8px; padding: 0.85rem; }
+      .pill-list { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0; list-style: none; }
+      .pill-list li { background: #eef2ff; border-radius: 999px; padding: 0.25rem 0.65rem; }
+      details summary { cursor: pointer; font-weight: 600; }
     </style>
   </head>
   <body>
     <h1>Story request</h1>
     <p><a href="/">Back to profiles</a></p>
-    <form id="story-form">
-      <label>Child profile
-        <select name="profile_id" ${profiles.length === 0 ? 'disabled' : ''}>
-          ${options || '<option>No profiles yet</option>'}
-        </select>
-      </label>
-      <label>Topic<input name="topic" value="going to the dentist" /></label>
-      <label>Target skill<input name="target_skill" value="preparing for a new experience" /></label>
-      <label>Length
-        <select name="story_length">
-          <option value="short">short</option>
-          <option value="medium">medium</option>
-        </select>
-      </label>
-      <label>Setting<input name="setting" value="dentist office" /></label>
-      <label>Tone
-        <select name="desired_tone">
-          <option value="calm_supportive">calm_supportive</option>
-          <option value="gentle_encouraging">gentle_encouraging</option>
-        </select>
-      </label>
-      <label>Avoid (comma-separated)<input name="avoid" value="scary details,surprising loud events" /></label>
-      <button type="submit" ${profiles.length === 0 ? 'disabled' : ''}>Generate story</button>
-    </form>
-    <pre id="story-result"></pre>
+    <div class="card">
+      <h2>Build a story request</h2>
+      <p class="muted">Pick a saved child profile, start from a scenario preset if useful, then adjust the request before generating.</p>
+      <div class="preset-grid" id="preset-grid"></div>
+      <div class="status" id="story-status" data-kind="info">Choose a profile and generate a story.</div>
+      <form id="story-form">
+        <label>Child profile
+          <select name="profile_id" ${profiles.length === 0 ? 'disabled' : ''}>
+            ${options || '<option value="">No profiles yet</option>'}
+          </select>
+        </label>
+        <div class="row">
+          <label>Topic<input name="topic" value="going to the dentist" maxlength="120" /></label>
+          <label>Target skill<input name="target_skill" value="preparing for a new experience" maxlength="120" /></label>
+        </div>
+        <div class="row">
+          <label>Length
+            <select name="story_length">
+              <option value="short">short</option>
+              <option value="medium">medium</option>
+            </select>
+          </label>
+          <label>Setting<input name="setting" value="dentist office" maxlength="120" /></label>
+        </div>
+        <div class="row">
+          <label>Tone
+            <select name="desired_tone">
+              <option value="calm_supportive">calm_supportive</option>
+              <option value="gentle_encouraging">gentle_encouraging</option>
+            </select>
+          </label>
+          <label>Avoid (comma-separated)<input name="avoid" value="scary details, surprising loud events" /></label>
+        </div>
+        <div class="actions">
+          <button type="submit" ${profiles.length === 0 ? 'disabled' : ''}>Generate story</button>
+          <button type="button" id="reset-request">Reset to default request</button>
+        </div>
+      </form>
+    </div>
+    <div class="card" id="story-output-card" hidden>
+      <h2 id="story-title">Generated story</h2>
+      <p class="muted" id="story-summary"></p>
+      <div class="row">
+        <div>
+          <h3>Child-facing story</h3>
+          <div class="story-block" id="child-story"></div>
+        </div>
+        <div>
+          <h3>Choices</h3>
+          <div class="section-list" id="story-choices"></div>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <h3>Caregiver note</h3>
+          <div class="story-block" id="caregiver-note"></div>
+        </div>
+        <div>
+          <h3>Review flags</h3>
+          <div class="story-block" id="review-flags"></div>
+        </div>
+      </div>
+      <details>
+        <summary>Raw API response</summary>
+        <pre id="story-result"></pre>
+      </details>
+    </div>
     <script>
-      const splitList = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
-      document.getElementById('story-form').addEventListener('submit', async (event) => {
+      const presets = ${JSON.stringify(scenarioPresets)};
+      const defaultRequest = presets[0];
+      const formElement = document.getElementById('story-form');
+      const statusElement = document.getElementById('story-status');
+      const outputCard = document.getElementById('story-output-card');
+      const resultElement = document.getElementById('story-result');
+      const splitList = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+      const uniqueList = (items) => items.filter((item, index) => items.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
+      const escapeHtml = (value) => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      const setStatus = (message, kind = 'info') => {
+        statusElement.textContent = message;
+        statusElement.dataset.kind = kind;
+      };
+
+      const applyPreset = (preset) => {
+        formElement.elements.topic.value = preset.topic;
+        formElement.elements.target_skill.value = preset.target_skill;
+        formElement.elements.story_length.value = preset.story_length;
+        formElement.elements.setting.value = preset.setting;
+        formElement.elements.desired_tone.value = preset.desired_tone;
+        formElement.elements.avoid.value = preset.avoid.join(', ');
+        setStatus('Applied preset: ' + preset.label + '.', 'info');
+      };
+
+      const renderPresets = () => {
+        document.getElementById('preset-grid').innerHTML = presets.map((preset) =>
+          '<button type="button" class="preset-button" data-preset="' + preset.id + '"><strong>' + escapeHtml(preset.label) + '</strong><span>' + escapeHtml(preset.description) + '</span></button>'
+        ).join('');
+
+        document.querySelectorAll('[data-preset]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const preset = presets.find((entry) => entry.id === button.dataset.preset);
+            if (preset) {
+              applyPreset(preset);
+            }
+          });
+        });
+      };
+
+      const validateRequest = (body) => {
+        const errors = [];
+        if (!body.profile_id) {
+          errors.push('Choose a saved child profile.');
+        }
+        if (!body.request.topic || body.request.topic.length > 120) {
+          errors.push(body.request.topic ? 'Topic must stay under 120 characters.' : 'Topic is required.');
+        }
+        if (!body.request.target_skill || body.request.target_skill.length > 120) {
+          errors.push(body.request.target_skill ? 'Target skill must stay under 120 characters.' : 'Target skill is required.');
+        }
+        if (body.request.setting && body.request.setting.length > 120) {
+          errors.push('Setting must stay under 120 characters.');
+        }
+        if (body.request.avoid.length > 6) {
+          errors.push('Keep the avoid list to 6 items or fewer.');
+        }
+        if (new Set(body.request.avoid.map((item) => item.toLowerCase())).size !== body.request.avoid.length) {
+          errors.push('Avoid list should not repeat the same item.');
+        }
+        return errors;
+      };
+
+      const renderStory = (payload) => {
+        const story = payload.story;
+        outputCard.hidden = false;
+        document.getElementById('story-title').textContent = story.title;
+        document.getElementById('story-summary').textContent = story.story.summary;
+        document.getElementById('child-story').innerHTML = [
+          '<p><strong>Opening:</strong> ' + escapeHtml(story.story.opening) + '</p>',
+          ...story.story.sections.map((section, index) =>
+            '<p><strong>Step ' + (index + 1) + ':</strong> ' + escapeHtml(section.text) + '</p>' +
+            '<p class="muted">Emotions: ' + escapeHtml(section.emotion_labels.join(', ') || 'none') + '<br />Support cues: ' + escapeHtml(section.support_cues.join(', ') || 'none') + '</p>'
+          ),
+          '<p><strong>Ending:</strong> ' + escapeHtml(story.story.ending) + '</p>',
+        ].join('');
+
+        document.getElementById('story-choices').innerHTML = story.story.choices.map((choice, index) =>
+          '<div class="story-block"><strong>Choice ' + (index + 1) + ' — ' + escapeHtml(choice.label) + '</strong>' +
+          '<p>' + escapeHtml(choice.prompt) + '</p>' +
+          '<p><strong>Outcome:</strong> ' + escapeHtml(choice.outcome_text) + '</p>' +
+          '<p class="muted">Skills: ' + escapeHtml(choice.skill_tags.join(', ')) + '<br />Tone: ' + escapeHtml(choice.tone_tags.join(', ')) + '</p></div>'
+        ).join('');
+
+        document.getElementById('caregiver-note').innerHTML =
+          '<p><strong>Intended lesson:</strong> ' + escapeHtml(story.caregiver_note.intended_lesson) + '</p>' +
+          '<p><strong>Adult guidance:</strong> ' + escapeHtml(story.caregiver_note.adult_guidance) + '</p>' +
+          '<p><strong>Suggested follow-up:</strong></p><ul>' +
+          story.caregiver_note.suggested_follow_up.map((item) => '<li>' + escapeHtml(item) + '</li>').join('') +
+          '</ul><p><strong>Review recommendation:</strong> ' + escapeHtml(story.caregiver_note.review_recommendation) + '</p>';
+
+        document.getElementById('review-flags').innerHTML =
+          '<p><strong>Flags:</strong></p>' +
+          (story.review_flags.length > 0
+            ? '<ul class="pill-list">' + story.review_flags.map((flag) => '<li>' + escapeHtml(flag) + '</li>').join('') + '</ul>'
+            : '<p>None</p>') +
+          '<p><strong>Requires adult review:</strong> ' + escapeHtml(String(story.metadata.requires_adult_review)) + '</p>' +
+          '<p><strong>Generator version:</strong> ' + escapeHtml(story.metadata.generator_version) + '</p>';
+
+        resultElement.textContent = JSON.stringify(payload, null, 2);
+      };
+
+      document.getElementById('reset-request').addEventListener('click', () => {
+        applyPreset(defaultRequest);
+        outputCard.hidden = true;
+        resultElement.textContent = '';
+      });
+
+      formElement.addEventListener('submit', async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
         const body = {
-          profile_id: form.get('profile_id'),
+          profile_id: String(form.get('profile_id') || '').trim(),
           request: {
-            topic: form.get('topic'),
-            target_skill: form.get('target_skill'),
-            story_length: form.get('story_length'),
-            setting: form.get('setting') || null,
-            desired_tone: form.get('desired_tone') || null,
-            avoid: splitList(form.get('avoid')),
+            topic: String(form.get('topic') || '').trim(),
+            target_skill: String(form.get('target_skill') || '').trim(),
+            story_length: String(form.get('story_length') || '').trim(),
+            setting: String(form.get('setting') || '').trim() || null,
+            desired_tone: String(form.get('desired_tone') || '').trim() || null,
+            avoid: uniqueList(splitList(form.get('avoid'))),
           },
         };
 
-        const response = await fetch('/api/story-requests', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = await response.json();
-        document.getElementById('story-result').textContent = JSON.stringify(data, null, 2);
+        const errors = validateRequest(body);
+        if (errors.length > 0) {
+          outputCard.hidden = true;
+          resultElement.textContent = '';
+          setStatus(errors.join(' '), 'error');
+          return;
+        }
+
+        try {
+          setStatus('Generating story…', 'info');
+          const response = await fetch('/api/story-requests', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Unable to generate story');
+          }
+          renderStory(data);
+          setStatus('Story generated. Review the child-facing story and caregiver note before use.', 'success');
+        } catch (error) {
+          outputCard.hidden = true;
+          resultElement.textContent = '';
+          setStatus(error.message || 'Unable to generate story.', 'error');
+        }
       });
+
+      renderPresets();
+      applyPreset(defaultRequest);
+      if (${profiles.length} === 0) {
+        setStatus('Create a child profile first, then come back to generate a story.', 'error');
+      }
     </script>
   </body>
 </html>`;

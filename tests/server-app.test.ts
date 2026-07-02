@@ -11,4 +11,16 @@ describe('Server app shell', () => {
     expect(html).toContain('Delete selected profile');
     expect(html).toContain('Save profile updates');
   });
+
+  it('renders the story request page with presets and separated review sections', async () => {
+    const response = await handleRequest(new Request('http://example.test/story-request'));
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('Dentist visit');
+    expect(html).toContain('Taking turns at the playground');
+    expect(html).toContain('Child-facing story');
+    expect(html).toContain('Caregiver note');
+    expect(html).toContain('Review flags');
+    expect(html).toContain('Raw API response');
+  });
 });

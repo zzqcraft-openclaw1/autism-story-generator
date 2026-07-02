@@ -13,7 +13,12 @@ export class StoryGenerationService {
   constructor(private readonly store = new JsonFileStore()) {}
 
   async submit(input: unknown): Promise<{ requestRecord: StoredStoryRequest; story: StoryOutput }> {
-    const parsed = storyGenerationRequestSchema.parse(input);
+    const parseResult = storyGenerationRequestSchema.safeParse(input);
+    if (!parseResult.success) {
+      throw new Error(formatValidationIssues(parseResult.error.issues));
+    }
+
+    const parsed = parseResult.data;
     const data = await this.store.read();
     const profile = data.childProfiles.find((entry) => entry.profile_id === parsed.profile_id);
 
@@ -42,6 +47,15 @@ export const storyGenerationRequestSchema = z.object({
   profile_id: z.string().trim().min(1),
   request: storyRequestSchema,
 });
+
+function formatValidationIssues(issues: z.ZodIssue[]): string {
+  return issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join('.') : 'request';
+      return `${path}: ${issue.message}`;
+    })
+    .join('; ');
+}
 
 function buildStoryOutput(profile: ChildProfile, request: StoryRequest): StoryOutput {
   const characterName = profile.identity.character_name;

@@ -47,6 +47,28 @@ describe('Phase 1 contracts', () => {
     }
   });
 
+  it('normalizes optional setting and rejects duplicate avoid items', () => {
+    const result = storyRequestSchema.safeParse({
+      ...validStoryRequestFixture,
+      setting: '   ',
+      avoid: ['scary details', 'Scary Details'],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.message).join(' | ')).toContain(
+        'Avoid list should not repeat the same item.',
+      );
+    }
+
+    const normalized = storyRequestSchema.parse({
+      ...validStoryRequestFixture,
+      setting: '   ',
+      avoid: ['scary details'],
+    });
+    expect(normalized.setting).toBeNull();
+  });
+
   it('accepts the valid story output fixture', () => {
     const result = storyOutputSchema.safeParse(validStoryOutputFixture);
     expect(result.success).toBe(true);
