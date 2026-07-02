@@ -18,10 +18,16 @@ describe('Server app shell', () => {
     const html = await response.text();
     expect(html).toContain('Dentist visit');
     expect(html).toContain('Taking turns at the playground');
+    expect(html).toContain('Caregiver review flow');
     expect(html).toContain('Child-facing story');
+    expect(html).toContain('Choices');
     expect(html).toContain('Caregiver note');
     expect(html).toContain('Review flags');
     expect(html).toContain('Guardrail report');
+    expect(html).toContain('Regenerate story');
+    expect(html).toContain('Shorten story');
+    expect(html).toContain('Simplify wording');
+    expect(html).toContain('Copy child-facing story');
     expect(html).toContain('Guardrail decision:');
     expect(html).toContain('Raw API response');
   });

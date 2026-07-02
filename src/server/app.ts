@@ -456,6 +456,14 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       .preset-button strong { display: block; margin-bottom: 0.2rem; }
       .section-list { display: grid; gap: 0.75rem; }
       .story-block { background: #f8f9fb; border-radius: 8px; padding: 0.85rem; }
+      .story-block p:last-child, .story-block ul:last-child { margin-bottom: 0; }
+      .review-layout { display: grid; gap: 1rem; }
+      .review-panel { border: 1px solid #e4e7ec; border-radius: 12px; padding: 1rem; background: #fff; }
+      .review-panel h3 { margin-top: 0; margin-bottom: 0.35rem; }
+      .review-panel textarea { min-height: 220px; font-family: inherit; }
+      .review-subactions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+      .review-checklist { margin: 0; padding-left: 1.2rem; }
+      .review-checklist li + li { margin-top: 0.35rem; }
       .pill-list { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0; list-style: none; }
       .pill-list li { background: #eef2ff; border-radius: 999px; padding: 0.25rem 0.65rem; }
       .guardrail-banner { border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem; }
@@ -512,30 +520,49 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       <h2 id="story-title">Generated story</h2>
       <p class="muted" id="story-summary"></p>
       <div class="guardrail-banner" id="guardrail-banner" data-decision="review"></div>
-      <div class="row">
-        <div>
+      <div class="review-layout">
+        <div class="review-panel">
+          <h3>Caregiver review flow</h3>
+          <p class="muted">This is a draft. Review the child-facing story first, then choices, caregiver note, and guardrail feedback before using it with a child.</p>
+          <ul class="review-checklist">
+            <li>Make sure the child-facing wording sounds familiar and calm.</li>
+            <li>Remove anything too long, vague, or overstimulating.</li>
+            <li>Check whether the guardrail report suggests regeneration.</li>
+          </ul>
+          <div class="review-subactions">
+            <button type="button" id="regenerate-story">Regenerate story</button>
+            <button type="button" id="shorten-story">Shorten story</button>
+            <button type="button" id="simplify-story">Simplify wording</button>
+            <button type="button" id="reset-story-copy">Reset edits</button>
+            <button type="button" id="copy-story-text">Copy child-facing story</button>
+          </div>
+          <div class="status" id="review-status" data-kind="info">You can make light edits here without changing generation or guardrail behavior.</div>
+        </div>
+        <div class="review-panel">
           <h3>Child-facing story</h3>
-          <div class="story-block" id="child-story"></div>
+          <p class="muted">Edit the child-facing draft directly if you want to tighten or personalize the language.</p>
+          <textarea id="child-story-editor" aria-label="Child-facing story editor"></textarea>
+          <div class="story-block" id="child-story-preview"></div>
         </div>
-        <div>
-          <h3>Choices</h3>
-          <div class="section-list" id="story-choices"></div>
+        <div class="row">
+          <div class="review-panel">
+            <h3>Choices</h3>
+            <div class="section-list" id="story-choices"></div>
+          </div>
+          <div class="review-panel">
+            <h3>Caregiver note</h3>
+            <div class="story-block" id="caregiver-note"></div>
+          </div>
         </div>
-      </div>
-      <div class="row">
-        <div>
-          <h3>Caregiver note</h3>
-          <div class="story-block" id="caregiver-note"></div>
-        </div>
-        <div>
-          <h3>Review flags</h3>
-          <div class="story-block" id="review-flags"></div>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <h3>Guardrail report</h3>
-          <div class="story-block" id="guardrail-report"></div>
+        <div class="row">
+          <div class="review-panel">
+            <h3>Review flags</h3>
+            <div class="story-block" id="review-flags"></div>
+          </div>
+          <div class="review-panel">
+            <h3>Guardrail report</h3>
+            <div class="story-block" id="guardrail-report"></div>
+          </div>
         </div>
       </div>
       <details>
@@ -551,6 +578,11 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       const outputCard = document.getElementById('story-output-card');
       const resultElement = document.getElementById('story-result');
       const guardrailBanner = document.getElementById('guardrail-banner');
+      const reviewStatusElement = document.getElementById('review-status');
+      const childStoryEditor = document.getElementById('child-story-editor');
+      const childStoryPreview = document.getElementById('child-story-preview');
+      let lastGeneratedRequest = null;
+      let originalEditableStoryText = '';
       const splitList = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
       const uniqueList = (items) => items.filter((item, index) => items.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
       const escapeHtml = (value) => String(value || '')
@@ -562,6 +594,11 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       const setStatus = (message, kind = 'info') => {
         statusElement.textContent = message;
         statusElement.dataset.kind = kind;
+      };
+
+      const setReviewStatus = (message, kind = 'info') => {
+        reviewStatusElement.textContent = message;
+        reviewStatusElement.dataset.kind = kind;
       };
 
       const applyPreset = (preset) => {
@@ -612,20 +649,33 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
         return errors;
       };
 
+      const composeEditableStoryText = (story) => [
+        story.story.opening,
+        ...story.story.sections.map((section, index) => 'Step ' + (index + 1) + ': ' + section.text),
+        story.story.ending,
+      ].join('\n\n');
+
+      const renderEditableStoryPreview = () => {
+        const paragraphs = String(childStoryEditor.value || '')
+          .split(/\n{2,}/)
+          .map((paragraph) => paragraph.trim())
+          .filter(Boolean);
+
+        childStoryPreview.innerHTML = paragraphs.length > 0
+          ? paragraphs.map((paragraph) => '<p>' + escapeHtml(paragraph) + '</p>').join('')
+          : '<p class="muted">Child-facing story preview will appear here.</p>';
+      };
+
       const renderStory = (payload) => {
         const story = payload.story;
         const guardrails = payload.guardrails || { decision: 'review', summary: 'No guardrail report returned.', issues: [], review_flags: story.review_flags || [], should_regenerate: false, requires_caregiver_review: true };
         outputCard.hidden = false;
         document.getElementById('story-title').textContent = story.title;
         document.getElementById('story-summary').textContent = story.story.summary;
-        document.getElementById('child-story').innerHTML = [
-          '<p><strong>Opening:</strong> ' + escapeHtml(story.story.opening) + '</p>',
-          ...story.story.sections.map((section, index) =>
-            '<p><strong>Step ' + (index + 1) + ':</strong> ' + escapeHtml(section.text) + '</p>' +
-            '<p class="muted">Emotions: ' + escapeHtml(section.emotion_labels.join(', ') || 'none') + '<br />Support cues: ' + escapeHtml(section.support_cues.join(', ') || 'none') + '</p>'
-          ),
-          '<p><strong>Ending:</strong> ' + escapeHtml(story.story.ending) + '</p>',
-        ].join('');
+
+        originalEditableStoryText = composeEditableStoryText(story);
+        childStoryEditor.value = originalEditableStoryText;
+        renderEditableStoryPreview();
 
         document.getElementById('story-choices').innerHTML = story.story.choices.map((choice, index) =>
           '<div class="story-block"><strong>Choice ' + (index + 1) + ' — ' + escapeHtml(choice.label) + '</strong>' +
@@ -666,12 +716,94 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
             : '<p>None</p>');
 
         resultElement.textContent = JSON.stringify(payload, null, 2);
+        setReviewStatus(guardrails.should_regenerate ? 'Guardrails suggest regeneration before caregiver use.' : 'Review the draft, then make any caregiver edits you need.', guardrails.should_regenerate ? 'error' : 'info');
       };
 
       document.getElementById('reset-request').addEventListener('click', () => {
         applyPreset(defaultRequest);
         outputCard.hidden = true;
         resultElement.textContent = '';
+      });
+
+      childStoryEditor.addEventListener('input', () => {
+        renderEditableStoryPreview();
+        setReviewStatus('Manual edits are local to this review screen so caregivers can tune wording safely.', 'info');
+      });
+
+      document.getElementById('reset-story-copy').addEventListener('click', () => {
+        childStoryEditor.value = originalEditableStoryText;
+        renderEditableStoryPreview();
+        setReviewStatus('Child-facing story reset to the generated draft.', 'success');
+      });
+
+      document.getElementById('shorten-story').addEventListener('click', () => {
+        const shortened = String(childStoryEditor.value || '')
+          .split(/\n+/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => line.split(/(?<=[.!?])\s+/).slice(0, 1).join(' ').trim())
+          .filter(Boolean)
+          .join('\n\n');
+        childStoryEditor.value = shortened || childStoryEditor.value;
+        renderEditableStoryPreview();
+        setReviewStatus('Shortened the child-facing story for a faster caregiver review pass.', 'success');
+      });
+
+      document.getElementById('simplify-story').addEventListener('click', () => {
+        const simplified = String(childStoryEditor.value || '')
+          .replace(/\bremembers\b/gi, 'knows')
+          .replace(/\bpractices\b/gi, 'tries')
+          .replace(/\bgetting ready for\b/gi, 'going to')
+          .replace(/\bfeels more ready\b/gi, 'feels ready')
+          .replace(/\bsmall calm steps\b/gi, 'small steps');
+        childStoryEditor.value = simplified;
+        renderEditableStoryPreview();
+        setReviewStatus('Simplified some wording in the child-facing draft. Caregiver note and guardrails are unchanged.', 'success');
+      });
+
+      document.getElementById('copy-story-text').addEventListener('click', async () => {
+        const storyText = String(childStoryEditor.value || '').trim();
+        if (!storyText) {
+          setReviewStatus('Nothing to copy yet.', 'error');
+          return;
+        }
+
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(storyText);
+            setReviewStatus('Child-facing story copied to clipboard.', 'success');
+          } else {
+            setReviewStatus('Clipboard copy is not available in this browser.', 'error');
+          }
+        } catch (error) {
+          setReviewStatus((error && error.message) || 'Unable to copy story text.', 'error');
+        }
+      });
+
+      document.getElementById('regenerate-story').addEventListener('click', async () => {
+        if (!lastGeneratedRequest) {
+          setReviewStatus('Generate a story first before trying regeneration.', 'error');
+          return;
+        }
+
+        try {
+          setStatus('Regenerating story…', 'info');
+          setReviewStatus('Requesting a fresh draft with the same caregiver inputs.', 'info');
+          const response = await fetch('/api/story-requests', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(lastGeneratedRequest),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Unable to regenerate story');
+          }
+          renderStory(data);
+          setStatus('Generated a fresh story draft for review.', 'success');
+        } catch (error) {
+          setReviewStatus((error && error.message) || 'Unable to regenerate story.', 'error');
+          setStatus((error && error.message) || 'Unable to regenerate story.', 'error');
+        }
       });
 
       formElement.addEventListener('submit', async (event) => {
@@ -698,6 +830,7 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
         }
 
         try {
+          lastGeneratedRequest = body;
           setStatus('Generating story…', 'info');
           const response = await fetch('/api/story-requests', {
             method: 'POST',
