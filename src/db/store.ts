@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ChildProfile, StoryOutput, StoryRequest } from '../schemas';
+import type { ChildProfile, StoryOutput, StoryRequest } from '../schemas/index.ts';
 
 export interface StoredStoryRequest {
   request_id: string;

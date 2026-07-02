@@ -4,6 +4,7 @@
     "outDir": "dist",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "rewriteRelativeImportExtensions": true,
     "target": "es2020",
     "types": ["node", "vitest/globals"],
     "lib": ["es2020"],

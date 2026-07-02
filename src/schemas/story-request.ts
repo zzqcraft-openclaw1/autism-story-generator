@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyTrimmedStringSchema, stringListSchema } from './common';
+import { nonEmptyTrimmedStringSchema, stringListSchema } from './common.ts';
 
 export const storyLengthSchema = z.enum(['short', 'medium']);
 export const storyToneSchema = z.enum(['calm_supportive', 'gentle_encouraging']);

@@ -1,3 +1,3 @@
-export * from './child-profile';
-export * from './story-request';
-export * from './story-output';
+export * from './child-profile.ts';
+export * from './story-request.ts';
+export * from './story-output.ts';

@@ -1,4 +1,4 @@
-import type { ChildProfile } from '../schemas';
+import type { ChildProfile } from '../schemas/index.ts';
 
 export const validChildProfileFixture: ChildProfile = {
   schema_version: '1.0',

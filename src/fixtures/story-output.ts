@@ -1,5 +1,5 @@
-import type { StoryOutput } from '../schemas';
-import { validStoryRequestFixture } from './story-request';
+import type { StoryOutput } from '../schemas/index.ts';
+import { validStoryRequestFixture } from './story-request.ts';
 
 export const validStoryOutputFixture: StoryOutput = {
   schema_version: '1.0',

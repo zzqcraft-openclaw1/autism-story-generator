@@ -4,8 +4,8 @@ import {
   languageCodeSchema,
   nonEmptyTrimmedStringSchema,
   stringListSchema,
-} from './common';
-import { storyRequestSchema } from './story-request';
+} from './common.ts';
+import { storyRequestSchema } from './story-request.ts';
 
 const profileSummarySchema = z.object({
   character_name: nonEmptyTrimmedStringSchema,

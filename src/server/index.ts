@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
-import { handleRequest } from './app';
+import { handleRequest } from './app.ts';
 
 export function startServer(port = 3000) {
   const server = createServer(async (req, res) => {

@@ -3,7 +3,7 @@ import {
   isoDateTimeStringSchema,
   nonEmptyTrimmedStringSchema,
   stringListSchema,
-} from './common';
+} from './common.ts';
 
 export const childProfileSchema = z.object({
   schema_version: z.literal('1.0'),

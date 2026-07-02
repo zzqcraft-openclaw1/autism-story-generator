@@ -6,7 +6,7 @@ import {
   type ChildProfile,
   type StoryOutput,
   type StoryRequest,
-} from './schemas';
+} from './schemas/index.ts';
 
 export type ValidationResult<T> =
   | { success: true; data: T }

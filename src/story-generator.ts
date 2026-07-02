@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { JsonFileStore, type StoredStoryRequest } from './db/store';
-import type { ChildProfile, StoryOutput, StoryRequest } from './schemas';
-import { storyOutputSchema, storyRequestSchema } from './schemas';
-import { makeId, nowIsoString } from './server/utils';
+import { JsonFileStore, type StoredStoryRequest } from './db/store.ts';
+import type { ChildProfile, StoryOutput, StoryRequest } from './schemas/index.ts';
+import { storyOutputSchema, storyRequestSchema } from './schemas/index.ts';
+import { makeId, nowIsoString } from './server/utils.ts';
 
 export interface GenerateStoryInput {
   profile_id: string;

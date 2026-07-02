@@ -1,4 +1,4 @@
-import type { StoryRequest } from '../schemas';
+import type { StoryRequest } from '../schemas/index.ts';
 
 export const validStoryRequestFixture: StoryRequest = {
   topic: 'going to the dentist',

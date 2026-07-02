@@ -1,6 +1,6 @@
-import { ChildProfileService } from '../child-profiles';
-import { StoryGenerationService } from '../story-generator';
-import { htmlResponse, jsonResponse, readJsonBody } from './utils';
+import { ChildProfileService } from '../child-profiles.ts';
+import { StoryGenerationService } from '../story-generator.ts';
+import { htmlResponse, jsonResponse, readJsonBody } from './utils.ts';
 
 const childProfiles = new ChildProfileService();
 const storyGenerator = new StoryGenerationService();
@@ -82,8 +82,14 @@ function renderHomePage(): string {
     <h1>Autism Story Generator</h1>
     <p>Thin MVP workspace for child profiles and story generation.</p>
     <div class="card">
-      <h2>Create child profile</h2>
+      <h2>Create or edit child profile</h2>
+      <label>Saved profiles
+        <select id="profile-picker">
+          <option value="">Create a new profile</option>
+        </select>
+      </label>
       <form id="profile-form">
+        <input type="hidden" name="profile_id" value="" />
         <div class="row">
           <label>Display name<input name="display_name" value="Milo" /></label>
           <label>Character name<input name="character_name" value="Milo" /></label>
@@ -102,6 +108,7 @@ function renderHomePage(): string {
         <label>Sensory sensitivities (comma-separated)<input name="sensitive_to" value="loud_noises" /></label>
         <label>Helpful strategies (comma-separated)<input name="helpful_strategies" value="deep_breathing,quiet_break,ask_for_help" /></label>
         <button type="submit">Save profile</button>
+        <button type="button" id="new-profile">Start new profile</button>
       </form>
       <pre id="profile-result"></pre>
     </div>
@@ -111,9 +118,61 @@ function renderHomePage(): string {
     </div>
     <script>
       const splitList = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
+      const joinList = (value) => Array.isArray(value) ? value.join(',') : '';
+      const formElement = document.getElementById('profile-form');
+      const pickerElement = document.getElementById('profile-picker');
+      const resultElement = document.getElementById('profile-result');
+
+      const resetForm = () => {
+        formElement.reset();
+        formElement.elements.profile_id.value = '';
+        pickerElement.value = '';
+      };
+
+      const fillForm = (profile) => {
+        formElement.elements.profile_id.value = profile.profile_id;
+        formElement.elements.display_name.value = profile.identity.display_name;
+        formElement.elements.character_name.value = profile.identity.character_name;
+        formElement.elements.age_range.value = profile.identity.age_range;
+        formElement.elements.reading_level.value = profile.communication.reading_level;
+        formElement.elements.favorite_topics.value = joinList(profile.interests.favorite_topics);
+        formElement.elements.sensitive_to.value = joinList(profile.sensory.sensitive_to);
+        formElement.elements.helpful_strategies.value = joinList(profile.regulation.helpful_strategies);
+      };
+
+      const loadProfiles = async () => {
+        const response = await fetch('/api/child-profiles');
+        const data = await response.json();
+        const items = data.items || [];
+        pickerElement.innerHTML = '<option value="">Create a new profile</option>' + items
+          .map((profile) => '<option value="' + profile.profile_id + '">' + profile.identity.display_name + ' (' + profile.profile_id + ')</option>')
+          .join('');
+        return items;
+      };
+
+      pickerElement.addEventListener('change', async (event) => {
+        const profileId = event.target.value;
+        if (!profileId) {
+          resetForm();
+          resultElement.textContent = '';
+          return;
+        }
+
+        const response = await fetch('/api/child-profiles/' + encodeURIComponent(profileId));
+        const profile = await response.json();
+        fillForm(profile);
+        resultElement.textContent = JSON.stringify(profile, null, 2);
+      });
+
+      document.getElementById('new-profile').addEventListener('click', () => {
+        resetForm();
+        resultElement.textContent = '';
+      });
+
       document.getElementById('profile-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
+        const profileId = form.get('profile_id');
         const body = {
           schema_version: '1.0',
           status: 'active',
@@ -178,14 +237,21 @@ function renderHomePage(): string {
           },
         };
 
-        const response = await fetch('/api/child-profiles', {
-          method: 'POST',
+        const response = await fetch(profileId ? '/api/child-profiles/' + encodeURIComponent(profileId) : '/api/child-profiles', {
+          method: profileId ? 'PUT' : 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(body),
         });
         const data = await response.json();
-        document.getElementById('profile-result').textContent = JSON.stringify(data, null, 2);
+        resultElement.textContent = JSON.stringify(data, null, 2);
+        await loadProfiles();
+        if (data.profile_id) {
+          pickerElement.value = data.profile_id;
+          fillForm(data);
+        }
       });
+
+      loadProfiles();
     </script>
   </body>
 </html>`;

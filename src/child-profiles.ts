@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { JsonFileStore } from './db/store';
-import { childProfileSchema, type ChildProfile } from './schemas';
-import { makeId, nowIsoString } from './server/utils';
+import { JsonFileStore } from './db/store.ts';
+import { childProfileSchema, type ChildProfile } from './schemas/index.ts';
+import { makeId, nowIsoString } from './server/utils.ts';
 
 const createChildProfileInputSchema = childProfileSchema.omit({
   profile_id: true,
