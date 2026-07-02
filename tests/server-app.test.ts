@@ -21,6 +21,8 @@ describe('Server app shell', () => {
     expect(html).toContain('Child-facing story');
     expect(html).toContain('Caregiver note');
     expect(html).toContain('Review flags');
+    expect(html).toContain('Guardrail report');
+    expect(html).toContain('Guardrail decision:');
     expect(html).toContain('Raw API response');
   });
 });

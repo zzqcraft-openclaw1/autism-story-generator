@@ -458,6 +458,11 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       .story-block { background: #f8f9fb; border-radius: 8px; padding: 0.85rem; }
       .pill-list { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0; list-style: none; }
       .pill-list li { background: #eef2ff; border-radius: 999px; padding: 0.25rem 0.65rem; }
+      .guardrail-banner { border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem; }
+      .guardrail-banner[data-decision="accept"] { background: #ecfdf3; border: 1px solid #abefc6; }
+      .guardrail-banner[data-decision="review"] { background: #fffaeb; border: 1px solid #fedf89; }
+      .guardrail-banner[data-decision="reject"] { background: #fef3f2; border: 1px solid #fda29b; }
+      .issue-list { padding-left: 1.2rem; }
       details summary { cursor: pointer; font-weight: 600; }
     </style>
   </head>
@@ -506,6 +511,7 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
     <div class="card" id="story-output-card" hidden>
       <h2 id="story-title">Generated story</h2>
       <p class="muted" id="story-summary"></p>
+      <div class="guardrail-banner" id="guardrail-banner" data-decision="review"></div>
       <div class="row">
         <div>
           <h3>Child-facing story</h3>
@@ -526,6 +532,12 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
           <div class="story-block" id="review-flags"></div>
         </div>
       </div>
+      <div class="row">
+        <div>
+          <h3>Guardrail report</h3>
+          <div class="story-block" id="guardrail-report"></div>
+        </div>
+      </div>
       <details>
         <summary>Raw API response</summary>
         <pre id="story-result"></pre>
@@ -538,6 +550,7 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
       const statusElement = document.getElementById('story-status');
       const outputCard = document.getElementById('story-output-card');
       const resultElement = document.getElementById('story-result');
+      const guardrailBanner = document.getElementById('guardrail-banner');
       const splitList = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
       const uniqueList = (items) => items.filter((item, index) => items.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
       const escapeHtml = (value) => String(value || '')
@@ -601,6 +614,7 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
 
       const renderStory = (payload) => {
         const story = payload.story;
+        const guardrails = payload.guardrails || { decision: 'review', summary: 'No guardrail report returned.', issues: [], review_flags: story.review_flags || [], should_regenerate: false, requires_caregiver_review: true };
         outputCard.hidden = false;
         document.getElementById('story-title').textContent = story.title;
         document.getElementById('story-summary').textContent = story.story.summary;
@@ -634,6 +648,22 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
             : '<p>None</p>') +
           '<p><strong>Requires adult review:</strong> ' + escapeHtml(String(story.metadata.requires_adult_review)) + '</p>' +
           '<p><strong>Generator version:</strong> ' + escapeHtml(story.metadata.generator_version) + '</p>';
+
+        guardrailBanner.dataset.decision = guardrails.decision;
+        guardrailBanner.innerHTML =
+          '<strong>Guardrail decision:</strong> ' + escapeHtml(String(guardrails.decision).toUpperCase()) +
+          '<p>' + escapeHtml(guardrails.summary) + '</p>' +
+          '<p><strong>Regenerate suggested:</strong> ' + escapeHtml(String(guardrails.should_regenerate)) + '<br />' +
+          '<strong>Extra caregiver review needed:</strong> ' + escapeHtml(String(guardrails.requires_caregiver_review)) + '</p>';
+
+        document.getElementById('guardrail-report').innerHTML =
+          (guardrails.issues && guardrails.issues.length > 0
+            ? '<ul class="issue-list">' + guardrails.issues.map((issue) => '<li><strong>' + escapeHtml(issue.severity) + '</strong> — ' + escapeHtml(issue.category) + ': ' + escapeHtml(issue.message) + '</li>').join('') + '</ul>'
+            : '<p>No guardrail issues detected.</p>') +
+          '<p><strong>Normalized review flags:</strong></p>' +
+          (guardrails.review_flags && guardrails.review_flags.length > 0
+            ? '<ul class="pill-list">' + guardrails.review_flags.map((flag) => '<li>' + escapeHtml(flag) + '</li>').join('') + '</ul>'
+            : '<p>None</p>');
 
         resultElement.textContent = JSON.stringify(payload, null, 2);
       };
@@ -679,7 +709,14 @@ function renderStoryRequestPage(profiles: Awaited<ReturnType<ChildProfileService
             throw new Error(data.error || 'Unable to generate story');
           }
           renderStory(data);
-          setStatus('Story generated. Review the child-facing story and caregiver note before use.', 'success');
+          setStatus(
+            data.guardrails?.decision === 'reject'
+              ? 'Story generated, but guardrails rejected it. Regenerate or revise before caregiver use.'
+              : data.guardrails?.decision === 'review'
+                ? 'Story generated with guardrail warnings. Strengthen caregiver review before use.'
+                : 'Story generated. Review the child-facing story and caregiver note before use.',
+            data.guardrails?.decision === 'reject' ? 'error' : 'success'
+          );
         } catch (error) {
           outputCard.hidden = true;
           resultElement.textContent = '';

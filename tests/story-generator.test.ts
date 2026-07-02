@@ -36,6 +36,9 @@ describe('Phase 3-4 request flow and generation', () => {
     expect(result.story.story_request.topic).toBe(validStoryRequestFixture.topic);
     expect(result.story.profile_summary.character_name).toBe(profile.identity.character_name);
     expect(result.story.metadata.branch_count).toBe(result.story.story.choices.length);
+    expect(result.guardrails.decision).toBe('accept');
+    expect(result.guardrails.review_flags).toContain('adult_review_recommended');
+    expect(result.story.review_flags).toEqual(result.guardrails.review_flags);
 
     const validation = validateStoryOutput(result.story);
     expect(validation.success).toBe(true);

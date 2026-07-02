@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { JsonFileStore, type StoredStoryRequest } from './db/store.ts';
+import { analyzeStoryGuardrails, type StoryGuardrailReport } from './guardrails.ts';
 import type { ChildProfile, StoryOutput, StoryRequest } from './schemas/index.ts';
 import { storyOutputSchema, storyRequestSchema } from './schemas/index.ts';
 import { makeId, nowIsoString } from './server/utils.ts';
@@ -12,7 +13,7 @@ export interface GenerateStoryInput {
 export class StoryGenerationService {
   constructor(private readonly store = new JsonFileStore()) {}
 
-  async submit(input: unknown): Promise<{ requestRecord: StoredStoryRequest; story: StoryOutput }> {
+  async submit(input: unknown): Promise<{ requestRecord: StoredStoryRequest; story: StoryOutput; guardrails: StoryGuardrailReport }> {
     const parseResult = storyGenerationRequestSchema.safeParse(input);
     if (!parseResult.success) {
       throw new Error(formatValidationIssues(parseResult.error.issues));
@@ -35,11 +36,19 @@ export class StoryGenerationService {
 
     const story = buildStoryOutput(profile, parsed.request);
 
+    const guardrails = analyzeStoryGuardrails(story);
+    const guardedStory = guardrails.review_flags.length === story.review_flags.length
+      ? story
+      : storyOutputSchema.parse({
+          ...story,
+          review_flags: guardrails.review_flags,
+        });
+
     data.storyRequests.push(requestRecord);
-    data.generatedStories.push(story);
+    data.generatedStories.push(guardedStory);
     await this.store.write(data);
 
-    return { requestRecord, story };
+    return { requestRecord, story: guardedStory, guardrails };
   }
 }
 
